@@ -194,7 +194,7 @@ if(isset($_POST['login'])){
             </div>
             <div class="text-center mt-3">
               <a href="#" id="showRegister" class="text-decoration-none" style="font-size: 14px"
-                >Create an account</a
+                >Create an accounts</a
               >
             </div>
           </div>
