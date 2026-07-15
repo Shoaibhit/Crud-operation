@@ -2,11 +2,18 @@
  include 'connection.php'; 
  $successMessage = '';
 $errorMessage = '';
- if (isset($_SESSION['successMessage'])) { $successMessage =
-$_SESSION['successMessage']; unset($_SESSION['successMessage']); } $search =
-trim($_GET['search'] ?? ''); $startDate = trim($_GET['start_date'] ?? '');
-$endDate = trim($_GET['end_date'] ?? ''); $category = trim($_GET['category'] ?? '');
-$result = null; $conditions = []; $params = []; $types = '';
+if (isset($_SESSION['successMessage'])) {
+    $successMessage = $_SESSION['successMessage'];
+    unset($_SESSION['successMessage']);
+}
+$search = trim($_GET['search'] ?? '');
+$startDate = trim($_GET['start_date'] ?? '');
+$endDate = trim($_GET['end_date'] ?? '');
+$category = trim($_GET['category'] ?? '');
+$result = null;
+$conditions = [];
+$params = [];
+$types = '';
 
 $incomeCategories = [];
 $catQuery = "SELECT name FROM income_categories ORDER BY name ASC";
@@ -17,14 +24,29 @@ if ($catResult) {
     }
 }
 
-if ($startDate !== '') { $conditions[] = 'date >= ?';
-$params[] = $startDate; $types .= 's'; } if ($endDate !== '') {
-$conditions[] = 'date <= ?'; $params[] = $endDate; $types .= 's'; } if ($search
-!== '') { $conditions[] = '(date LIKE ? OR amount LIKE ? OR reference_no LIKE ?
-OR income_category LIKE ? OR payment_method LIKE ? OR notes LIKE ?)';
-$searchTerm = '%' . $search . '%'; $params[] = $searchTerm; $params[] =
-$searchTerm; $params[] = $searchTerm; $params[] = $searchTerm; $params[] =
-$searchTerm; $params[] = $searchTerm; $types .= 'ssssss'; }
+if ($startDate !== '') {
+    $conditions[] = 'date >= ?';
+    $params[] = $startDate;
+    $types .= 's';
+}
+
+if ($endDate !== '') {
+    $conditions[] = 'date <= ?';
+    $params[] = $endDate;
+    $types .= 's';
+}
+
+if ($search !== '') {
+    $conditions[] = '(date LIKE ? OR amount LIKE ? OR reference_no LIKE ? OR income_category LIKE ? OR payment_method LIKE ? OR notes LIKE ?)';
+    $searchTerm = '%' . $search . '%';
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $types .= 'ssssss';
+}
 
 if ($category !== '') {
     $conditions[] = 'income_category = ?';
@@ -32,13 +54,20 @@ if ($category !== '') {
     $types .= 's';
 }
 
-$query =
-"SELECT id, date, amount, income_category, payment_method, notes, reference_no
-FROM income"; if (!empty($conditions)) { $query .= ' WHERE ' . implode(' AND ',
-$conditions); } $query .= ' ORDER BY id DESC'; $stmt = mysqli_prepare($conn,
-$query); if ($stmt) { if (!empty($params)) { mysqli_stmt_bind_param($stmt,
-$types, ...$params); } mysqli_stmt_execute($stmt); $result =
-mysqli_stmt_get_result($stmt); } ?>
+$query = "SELECT id, date, amount, income_category, payment_method, notes, reference_no FROM income";
+if (!empty($conditions)) {
+    $query .= ' WHERE ' . implode(' AND ', $conditions);
+}
+$query .= ' ORDER BY id DESC';
+$stmt = mysqli_prepare($conn, $query);
+if ($stmt) {
+    if (!empty($params)) {
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+    }
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+}
+?>
 <!doctype html>
 <html lang="en">
   <head>
@@ -221,28 +250,23 @@ mysqli_stmt_get_result($stmt); } ?>
                   </tr>
                 </thead>
                 <tbody>
-                  <?php if ($result && mysqli_num_rows($result) > 0): ?> <?php
-                  while ($row = mysqli_fetch_assoc($result)): ?>
-                  <tr>
-                    <td>
-                      <?php echo htmlspecialchars($row['reference_no']); ?>
-                    </td>
-                    <td><?php echo htmlspecialchars($row['date']); ?></td>
-                    <td><?php echo number_format($row['amount'], 2); ?></td>
-                    <td>
-                      <?php echo htmlspecialchars($row['income_category']); ?>
-                    </td>
-                    <td>
-                      <?php echo htmlspecialchars($row['payment_method']); ?>
-                    </td>
-                    <td><?php echo htmlspecialchars($row['notes']); ?></td>
-                  </tr>
-                  <?php endwhile; ?> <?php else: ?>
-                  <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
-                      No income records found.
-                    </td>
-                  </tr>
+                  <?php if ($result && mysqli_num_rows($result) > 0): ?>
+                    <?php while ($row = mysqli_fetch_assoc($result)): ?>
+                      <tr>
+                        <td><?php echo htmlspecialchars($row['reference_no']); ?></td>
+                        <td><?php echo htmlspecialchars($row['date']); ?></td>
+                        <td><?php echo number_format($row['amount'], 2); ?></td>
+                        <td><?php echo htmlspecialchars($row['income_category']); ?></td>
+                        <td><?php echo htmlspecialchars($row['payment_method']); ?></td>
+                        <td><?php echo htmlspecialchars($row['notes']); ?></td>
+                      </tr>
+                    <?php endwhile; ?>
+                  <?php else: ?>
+                    <tr>
+                      <td colspan="6" class="text-center text-muted py-4">
+                        No income records found.
+                      </td>
+                    </tr>
                   <?php endif; ?>
                 </tbody>
               </table>

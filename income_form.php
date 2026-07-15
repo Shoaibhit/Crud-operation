@@ -25,6 +25,15 @@ if (isset($_SESSION['successMessage'])) {
     unset($_SESSION['successMessage']);
 }
 
+$incomeCategories = [];
+$catQuery = "SELECT name FROM income_categories ORDER BY name ASC";
+$catResult = mysqli_query($conn, $catQuery);
+if ($catResult) {
+    while ($catRow = mysqli_fetch_assoc($catResult)) {
+        $incomeCategories[] = $catRow['name'];
+    }
+}
+
 if(isset($_POST['save_income'])) {
     $old['income_date'] = trim($_POST['income_date'] ?? '');
     $old['income_amount'] = trim($_POST['income_amount'] ?? '');
@@ -174,11 +183,9 @@ if(isset($_POST['save_income'])) {
                                 <label for="incomeCategory" class="form-label">Category</label>
                                 <select id="incomeCategory" name="income_category" class="form-select form-select-lg rounded-4">
                                     <option value="">Select category</option>
-                                    <option value="Services"<?php echo $old['income_category'] === 'Services' ? ' selected' : ''; ?>>Services</option>
-                                    <option value="Fees collection"<?php echo $old['income_category'] === 'Fees collection' ? ' selected' : ''; ?>>Fees collection</option>
-                                    <option value="Investment"<?php echo $old['income_category'] === 'Investment' ? ' selected' : ''; ?>>Investment</option>
-                                    <option value="Client sale"<?php echo $old['income_category'] === 'Client sale' ? ' selected' : ''; ?>>Client sale</option>
-                                    <option value="Other"<?php echo $old['income_category'] === 'Other' ? ' selected' : ''; ?>>Other</option>
+                                    <?php foreach ($incomeCategories as $categoryOption): ?>
+                                        <option value="<?php echo htmlspecialchars($categoryOption); ?>"<?php echo $old['income_category'] === $categoryOption ? ' selected' : ''; ?>><?php echo htmlspecialchars($categoryOption); ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                                 <?php if($errors['income_category']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['income_category']); ?></div><?php endif; ?>
                             </div>

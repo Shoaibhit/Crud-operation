@@ -72,8 +72,16 @@ if ($stmt) {
     }
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $row['category'] = $row['expence_category'];
+            $row['notes'] = $row['note'] ?? '';
+            $reportRows[] = $row;
+        }
+    }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -211,21 +219,21 @@ if ($stmt) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if ($result && mysqli_num_rows($result) > 0): ?>
-                                    <?php while ($row = mysqli_fetch_assoc($result)): ?>
+                                <?php if (!empty($reportRows)): ?>
+                                    <?php foreach ($reportRows as $row): ?>
                                         <tr>
                                             <td><?php echo htmlspecialchars($row['reference_no']); ?></td>
                                             <td><?php echo htmlspecialchars($row['date']); ?></td>
                                             <td><?php echo number_format($row['amount'], 2); ?></td>
-                                            <td><?php echo htmlspecialchars($row['expence_category']); ?></td>
+                                            <td><?php echo htmlspecialchars($row['category']); ?></td>
                                             <td><?php echo htmlspecialchars($row['payment_method']); ?></td>
-                                            <td><?php echo htmlspecialchars($row['note']); ?></td>
+                                            <td><?php echo htmlspecialchars($row['notes']); ?></td>
                                         </tr>
-                                    <?php endwhile; ?>
+                                    <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted py-4">
-                                            No expense  records found.
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            No expense records found.
                                         </td>
                                     </tr>
                                 <?php endif; ?>
