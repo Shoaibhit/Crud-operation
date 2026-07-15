@@ -57,8 +57,17 @@ if (isset($_POST['save_loan'])) {
 
 
     if (!array_filter($errors)) {
-        $query = "INSERT INTO investors (name, phone_no, cnic, address, type, notes) VALUES (?, ?, ?, ?, ?, ?)";
-        $stmt = mysqli_prepare($conn, $query);
+        $selectQuery = "SELECT * FROM investors WHERE phone_no = ?";
+        $selectStmt = mysqli_prepare($conn, $selectQuery);
+        mysqli_stmt_bind_param($selectStmt, "s", $old['phone_no']);
+        mysqli_stmt_execute($selectStmt);
+        $result = mysqli_stmt_get_result($selectStmt);
+
+        if (mysqli_num_rows($result) > 0) {
+            $errors['phone_no'] = 'A record with this phone number already exists.';
+        } else {
+            $query = "INSERT INTO investors (name, phone_no, cnic, address, type, notes) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = mysqli_prepare($conn, $query);
 
         if ($stmt) {
             mysqli_stmt_bind_param(
@@ -85,6 +94,7 @@ if (isset($_POST['save_loan'])) {
             $errorMessage = 'Database error: ' . mysqli_error($conn);
         }
     }
+}
 }
 ?>
 <!DOCTYPE html>

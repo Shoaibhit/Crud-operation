@@ -3,6 +3,9 @@
 session_start();
 include 'connection.php';
 
+$startDate = trim($_GET['start_date'] ?? '');
+$endDate = trim($_GET['end_date'] ?? '');
+
 $query = "
 SELECT
     d.date,
@@ -31,10 +34,38 @@ LEFT JOIN
     FROM expence
     GROUP BY date
 ) e ON d.date = e.date
-
-ORDER BY d.date DESC
 ";
-$result = mysqli_query($conn, $query);
+
+$conditions = [];
+$params = [];
+$types = '';
+
+if ($startDate !== '') {
+    $conditions[] = 'd.date >= ?';
+    $params[] = $startDate;
+    $types .= 's';
+}
+
+if ($endDate !== '') {
+    $conditions[] = 'd.date <= ?';
+    $params[] = $endDate;
+    $types .= 's';
+}
+
+if (!empty($conditions)) {
+    $query .= ' WHERE ' . implode(' AND ', $conditions);
+}
+
+$query .= ' ORDER BY d.date DESC';
+
+$stmt = mysqli_prepare($conn, $query);
+if ($stmt) {
+    if (!empty($params)) {
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+    }
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -105,6 +136,31 @@ $result = mysqli_query($conn, $query);
             </div>
           </div>
           <div class="card page-card bg-white border-0 p-4">
+            <form id="profitLossFilterForm" method="GET" class="mb-3">
+              <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-2">
+                  <label class="form-label small mb-1">From Date</label>
+                  <input type="date" name="start_date" class="form-control" value="<?php echo htmlspecialchars($startDate); ?>" />
+                </div>
+                <div class="col-12 col-md-2">
+                  <label class="form-label small mb-1">To Date</label>
+                  <input type="date" name="end_date" class="form-control" value="<?php echo htmlspecialchars($endDate); ?>" />
+                </div>
+               
+                <div class="col-12 col-md-2 ms-auto text-end">
+                  <label class="form-label small mb-1 opacity-0">PDF</label>
+                   <button id="exportPdfBtn" type="button" class="btn btn-outline-danger w-100">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                  </button>
+                </div>
+                <div class="col-12 col-md-2 text-end">
+                  <label class="form-label small mb-1 opacity-0">Export</label>
+                  <button id="exportCsvBtn" type="button" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-box-arrow-up-right me-1"></i> Export
+                  </button>
+                </div>
+              </div>
+            </form>
             <div class="table-responsive">
               <table class="table table-bordered table-hover table-striped align-middle mb-0">
                 <thead class="table-light">
@@ -148,5 +204,69 @@ $result = mysqli_query($conn, $query);
       integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
       crossorigin="anonymous"
     ></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('profitLossFilterForm');
+        if (!form) return;
+
+        const startDate = form.querySelector('input[name="start_date"]');
+        const endDate = form.querySelector('input[name="end_date"]');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        let debounceTimer;
+
+        const submitForm = () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => form.submit(), 250);
+        };
+
+        if (startDate) startDate.addEventListener('change', submitForm);
+        if (endDate) endDate.addEventListener('change', submitForm);
+
+        if (exportPdfBtn) {
+          exportPdfBtn.addEventListener('click', function () {
+            window.print();
+          });
+        }
+
+        if (exportCsvBtn) {
+          exportCsvBtn.addEventListener('click', function () {
+            const rows = Array.from(document.querySelectorAll('table tbody tr'));
+            if (!rows.length) {
+              alert('No data available to export.');
+              return;
+            }
+
+            const csvHeaders = ['Date', 'Description', 'Income', 'Expense', 'Profit / Loss'];
+            const csvRows = [csvHeaders.join(',')];
+
+            rows.forEach((row) => {
+              const cells = Array.from(row.querySelectorAll('td'));
+              const cellValues = cells.map((cell) => '"' + cell.innerText.replace(/"/g, '""') + '"');
+              csvRows.push(cellValues.join(','));
+            });
+
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const now = new Date();
+            const filename = `profit_loss_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.csv`;
+
+            if (navigator.msSaveBlob) {
+              navigator.msSaveBlob(blob, filename);
+            } else {
+              const url = URL.createObjectURL(blob);
+              link.setAttribute('href', url);
+              link.setAttribute('download', filename);
+              link.style.visibility = 'hidden';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            }
+          });
+        }
+      });
+    </script>
   </body>
 </html>

@@ -26,6 +26,15 @@ if (isset($_SESSION['successMessage'])) {
     unset($_SESSION['successMessage']);
 }
 
+$expenseCategories = [];
+$catQuery = "SELECT name FROM expense_categories ORDER BY name ASC";
+$catResult = mysqli_query($conn, $catQuery);
+if ($catResult) {
+    while ($catRow = mysqli_fetch_assoc($catResult)) {
+        $expenseCategories[] = $catRow['name'];
+    }
+}
+
 if (isset($_POST['save_expense'])) {
     $old['expense_date'] = trim($_POST['expense_date'] ?? '');
     $old['expense_amount'] = trim($_POST['expense_amount'] ?? '');
@@ -170,11 +179,9 @@ if (isset($_POST['save_expense'])) {
                                 <label for="expenseCategory" class="form-label">Expense Category</label>
                                 <select id="expenseCategory" name="expense_category" class="form-select form-select-lg rounded-4">
                                     <option value="">Select category</option>
-                                    <option value="Salary"<?php echo $old['expense_category'] === 'Salary' ? ' selected' : ''; ?>>Salary</option>
-                                    <option value="Freelance"<?php echo $old['expense_category'] === 'Freelance' ? ' selected' : ''; ?>>Freelance</option>
-                                    <option value="Investment"<?php echo $old['expense_category'] === 'Investment' ? ' selected' : ''; ?>>Investment</option>
-                                    <option value="Bonus"<?php echo $old['expense_category'] === 'Bonus' ? ' selected' : ''; ?>>Bonus</option>
-                                    <option value="Other"<?php echo $old['expense_category'] === 'Other' ? ' selected' : ''; ?>>Other</option>
+                                    <?php foreach ($expenseCategories as $cat): ?>
+                                        <option value="<?php echo htmlspecialchars($cat); ?>"<?php echo $old['expense_category'] === $cat ? ' selected' : ''; ?>><?php echo htmlspecialchars($cat); ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                                 <?php if ($errors['expense_category']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['expense_category']); ?></div><?php endif; ?>
                             </div>

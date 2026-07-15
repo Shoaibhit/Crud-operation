@@ -6,29 +6,16 @@ include 'connection.php';
 $successMessage = '';
 $errorMessage = '';
 $errors = [
+    'loan_type' => '',
     'person_name' => '',
-    'phone_no' => '',
-    'cnic' => '',
-    'adress' => '',
     'loan_amount' => '',
     'loan_date' => '',
-    'due_date' => '',
-    'payment_method' => '',
-    'installment_type' => '',
-    'loan_notes' => '',
-    'screenshot' => '',
 ];
 $old = [
+    'loan_type' => '',
     'person_name' => '',
-    'phone_no' => '',
-    'cnic' => '',
-    'adress' => '',
     'loan_amount' => '',
     'loan_date' => '',
-    'due_date' => '',
-    'payment_method' => '',
-    'installment_type' => '',
-    'loan_notes' => '',
 ];
 
 if (isset($_SESSION['successMessage'])) {
@@ -37,89 +24,39 @@ if (isset($_SESSION['successMessage'])) {
 }
 
 if (isset($_POST['save_loan'])) {
+    $old['loan_type'] = trim($_POST['loan_type'] ?? '');
     $old['person_name'] = trim($_POST['person_name'] ?? '');
-    $old['phone_no'] = trim($_POST['phone_no'] ?? '');
-    $old['cnic'] = trim($_POST['cnic'] ?? '');
-    $old['adress'] = trim($_POST['adress'] ?? '');
     $old['loan_amount'] = trim($_POST['loan_amount'] ?? '');
     $old['loan_date'] = trim($_POST['loan_date'] ?? '');
-    $old['due_date'] = trim($_POST['due_date'] ?? '');
-    $old['payment_method'] = trim($_POST['payment_method'] ?? '');
-    $old['installment_type'] = trim($_POST['installment_type'] ?? '');
-    $old['loan_notes'] = trim($_POST['loan_notes'] ?? '');
+    $entryType = (!empty($_POST['is_repay']) && $_POST['is_repay'] === '1') ? 'repayment' : 'loan';
 
+    if ($old['loan_type'] === '') {
+        $errors['loan_type'] = 'Please select debtor or creditor.';
+    }
     if ($old['person_name'] === '') {
         $errors['person_name'] = 'Person name is required.';
     }
-    if ($old['phone_no'] === '') {
-        $errors['phone_no'] = 'Phone number is required.';
-    }
-    if ($old['cnic'] === '') {
-        $errors['cnic'] = 'CNIC is required.';
-    }
-    if ($old['adress'] === '') {
-        $errors['adress'] = 'Address is required.';
-    }
     if ($old['loan_amount'] === '' || !is_numeric($old['loan_amount'])) {
-        $errors['loan_amount'] = 'Valid loan amount is required.';
+        $errors['loan_amount'] = 'Valid amount is required.';
     }
     if ($old['loan_date'] === '') {
-        $errors['loan_date'] = 'Loan date is required.';
-    }
-    if ($old['due_date'] === '') {
-        $errors['due_date'] = 'Due date is required.';
-    }
-    if ($old['payment_method'] === '') {
-        $errors['payment_method'] = 'Payment method is required.';
-    }
-    if ($old['installment_type'] === '') {
-        $errors['installment_type'] = 'Installment type is required.';
-    }
-    if ($old['loan_notes'] === '') {
-        $errors['loan_notes'] = 'Notes are required.';
-    }
-
-    $screenshotPath = '';
-    if (isset($_FILES['screenshot']) && $_FILES['screenshot']['error'] !== UPLOAD_ERR_NO_FILE) {
-        if ($_FILES['screenshot']['error'] !== UPLOAD_ERR_OK) {
-            $errors['screenshot'] = 'Screenshot upload failed.';
-        } else {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            if (!in_array($_FILES['screenshot']['type'], $allowedTypes, true)) {
-                $errors['screenshot'] = 'Screenshot must be JPG, PNG, or GIF.';
-            } elseif ($_FILES['screenshot']['size'] > 2 * 1024 * 1024) {
-                $errors['screenshot'] = 'Screenshot file is too large.';
-            } else {
-                $uploadDir = __DIR__ . '/uploads/loans/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
-                $fileName = uniqid('loan_', true) . '_' . basename($_FILES['screenshot']['name']);
-                $fileName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $fileName);
-                $screenshotPath = 'uploads/loans/' . $fileName;
-                move_uploaded_file($_FILES['screenshot']['tmp_name'], $uploadDir . $fileName);
-            }
-        }
+        $errors['loan_date'] = 'Date is required.';
     }
 
     if (!array_filter($errors)) {
-        $query = "INSERT INTO loans (person_name, phone_no, cnic, adress, loan_amount, loan_date, due_date, payment_method, installment_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $query = "INSERT INTO loan_entries (entry_type, loan_type, person_name, loan_amount, loan_date) VALUES (?, ?, ?, ?, ?)";
         $stmt = mysqli_prepare($conn, $query);
 
         if ($stmt) {
+            $loanAmount = (float) $old['loan_amount'];
             mysqli_stmt_bind_param(
                 $stmt,
-                "ssssdsssss",
+                "sssds",
+                $entryType,
+                $old['loan_type'],
                 $old['person_name'],
-                $old['phone_no'],
-                $old['cnic'],
-                $old['adress'],
-                $old['loan_amount'],
-                $old['loan_date'],
-                $old['due_date'],
-                $old['payment_method'],
-                $old['installment_type'],
-                $old['loan_notes']
+                $loanAmount,
+                $old['loan_date']
             );
 
             if (mysqli_stmt_execute($stmt)) {
@@ -134,6 +71,18 @@ if (isset($_POST['save_loan'])) {
         } else {
             $errorMessage = 'Database error: ' . mysqli_error($conn);
         }
+    }
+}
+
+$investorNames = [];
+$investorQuery = "SELECT name, type FROM investors ORDER BY type ASC, name ASC";
+$investorResult = mysqli_query($conn, $investorQuery);
+if ($investorResult) {
+    while ($investorRow = mysqli_fetch_assoc($investorResult)) {
+        $investorNames[] = [
+            'name' => $investorRow['name'],
+            'type' => $investorRow['type']
+        ];
     }
 }
 ?>
@@ -183,19 +132,11 @@ if (isset($_POST['save_loan'])) {
             <main class="col-12 col-md-9 col-xl-9 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h1 class="h3 mb-1">Loan Entry</h1>
-                        <p class="text-muted mb-0">Add a new loan record with borrower details and payment schedule.</p>
+                        <h1 class="h3 mb-1" id="formTitle">Loan Entry</h1>
+                        <p class="text-muted mb-0" id="formSubtitle">Add a new loan record quickly.</p>
                     </div>
                 </div>
                 <div class="card form-card bg-white border-0 p-4">
-                    <div class="mb-4 d-flex justify-content-between align-items-center">
-                        <span class="badge bg-primary rounded-pill px-3 py-2 fs-6">
-                            <i class="bi bi-plus-circle me-1"></i> New Loan Entry
-                        </span>
-                        <a href="repay_loan.php" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
-                            <i class="bi bi-list-ul me-2"></i> Repay Loan
-                        </a>
-                    </div>
                     <?php if (!empty($successMessage)): ?>
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
                             <?php echo htmlspecialchars($successMessage); ?>
@@ -208,71 +149,46 @@ if (isset($_POST['save_loan'])) {
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     <?php endif; ?>
-                    <form action="" method="POST" enctype="multipart/form-data">
+                    <form action="" method="POST">
                         <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="repayToggle" name="is_repay" value="1" />
+                                    <label class="form-check-label fw-semibold" for="repayToggle">Repay</label>
+                                </div>
+                            </div>
                             <div class="col-md-6">
-                                <label for="personName" class="form-label">Person Name</label>
-                                <input type="text" id="personName" name="person_name" class="form-control form-control-lg rounded-4" value="<?php echo htmlspecialchars($old['person_name']); ?>" />
+                                <label for="loanType" class="form-label">Select Type</label>
+                                <select id="loanType" name="loan_type_display" class="form-select form-select-lg rounded-4" disabled>
+                                    <option value="">Select type</option>
+                                    <option value="Debtor"<?php echo $old['loan_type'] === 'Debtor' ? ' selected' : ''; ?>>Debtor</option>
+                                    <option value="Creditor"<?php echo $old['loan_type'] === 'Creditor' ? ' selected' : ''; ?>>Creditor</option>
+                                </select>
+                                <input type="hidden" name="loan_type" id="loanTypeValue" value="<?php echo htmlspecialchars($old['loan_type']); ?>" />
+                                <?php if ($errors['loan_type']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['loan_type']); ?></div><?php endif; ?>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="personName" id="personNameLabel" class="form-label">Person Name</label>
+                                <select id="personName" name="person_name" class="form-select form-select-lg rounded-4">
+                                    <option value="">Select name</option>
+                                    <?php foreach ($investorNames as $person): ?>
+                                        <option value="<?php echo htmlspecialchars($person['name']); ?>" data-type="<?php echo htmlspecialchars($person['type']); ?>"<?php echo $old['person_name'] === $person['name'] ? ' selected' : ''; ?>><?php echo htmlspecialchars($person['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <?php if ($errors['person_name']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['person_name']); ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-6">
-                                <label for="phoneNo" class="form-label">Phone Number</label>
-                                <input type="tel" id="phoneNo" name="phone_no" class="form-control form-control-lg rounded-4" value="<?php echo htmlspecialchars($old['phone_no']); ?>" />
-                                <?php if ($errors['phone_no']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['phone_no']); ?></div><?php endif; ?>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="cnic" class="form-label">CNIC</label>
-                                <input type="text" id="cnic" name="cnic" class="form-control form-control-lg rounded-4" value="<?php echo htmlspecialchars($old['cnic']); ?>" />
-                                <?php if ($errors['cnic']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['cnic']); ?></div><?php endif; ?>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="loanAmount" class="form-label">Loan Amount</label>
+                                <label for="loanAmount" class="form-label">Amount</label>
                                 <input type="number" id="loanAmount" name="loan_amount" class="form-control form-control-lg rounded-4" min="0" step="0.01" value="<?php echo htmlspecialchars($old['loan_amount']); ?>" />
                                 <?php if ($errors['loan_amount']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['loan_amount']); ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-6">
-                                <label for="loanDate" class="form-label">Loan Date</label>
+                                <label for="loanDate" class="form-label">Date</label>
                                 <input type="date" id="loanDate" name="loan_date" class="form-control form-control-lg rounded-4" value="<?php echo htmlspecialchars($old['loan_date']); ?>" />
                                 <?php if ($errors['loan_date']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['loan_date']); ?></div><?php endif; ?>
                             </div>
-                            <div class="col-md-6">
-                                <label for="dueDate" class="form-label">Due Date</label>
-                                <input type="date" id="dueDate" name="due_date" class="form-control form-control-lg rounded-4" value="<?php echo htmlspecialchars($old['due_date']); ?>" />
-                                <?php if ($errors['due_date']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['due_date']); ?></div><?php endif; ?>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="paymentMethod" class="form-label">Payment Method</label>
-                                <select id="paymentMethod" name="payment_method" class="form-select form-select-lg rounded-4">
-                                    <option value="">Select payment method</option>
-                                    <option value="Cash"<?php echo $old['payment_method'] === 'Cash' ? ' selected' : ''; ?>>Cash</option>
-                                    <option value="Bank Transfer"<?php echo $old['payment_method'] === 'Bank Transfer' ? ' selected' : ''; ?>>Bank Transfer</option>
-                                    <option value="Credit Card"<?php echo $old['payment_method'] === 'Credit Card' ? ' selected' : ''; ?>>Credit Card</option>
-                                    <option value="Debit Card"<?php echo $old['payment_method'] === 'Debit Card' ? ' selected' : ''; ?>>Debit Card</option>
-                                    <option value="Other"<?php echo $old['payment_method'] === 'Other' ? ' selected' : ''; ?>>Other</option>
-                                </select>
-                                <?php if ($errors['payment_method']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['payment_method']); ?></div><?php endif; ?>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="installmentType" class="form-label">Installment Type</label>
-                                <select id="installmentType" name="installment_type" class="form-select form-select-lg rounded-4">
-                                    <option value="">Select installment type</option>
-                                    <option value="monthly"<?php echo $old['installment_type'] === 'monthly' ? ' selected' : ''; ?>>Monthly</option>
-                                    <option value="half-year"<?php echo $old['installment_type'] === 'half-year' ? ' selected' : ''; ?>>Half-year</option>
-                                </select>
-                                <?php if ($errors['installment_type']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['installment_type']); ?></div><?php endif; ?>
-                            </div>
                             <div class="col-12">
-                                <label for="adress" class="form-label">Address</label>
-                                <textarea id="adress" name="adress" class="form-control rounded-4" rows="3"><?php echo htmlspecialchars($old['adress']); ?></textarea>
-                                <?php if ($errors['adress']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['adress']); ?></div><?php endif; ?>
-                            </div>
-                            <div class="col-12">
-                                <label for="loanNotes" class="form-label">Notes</label>
-                                <textarea id="loanNotes" name="loan_notes" class="form-control rounded-4" rows="4" placeholder="Add any important details..."><?php echo htmlspecialchars($old['loan_notes']); ?></textarea>
-                                <?php if ($errors['loan_notes']): ?><div class="text-danger small mt-1"><?php echo htmlspecialchars($errors['loan_notes']); ?></div><?php endif; ?>
-                            </div>
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5" name="save_loan">Save Loan</button>
+                                <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5" name="save_loan" id="submitButton">Save Loan</button>
                             </div>
                         </div>
                     </form>
@@ -280,6 +196,109 @@ if (isset($_POST['save_loan'])) {
             </main>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.alert .btn-close').forEach(function (button) {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const alertBox = button.closest('.alert');
+                    if (alertBox) {
+                        alertBox.classList.remove('show');
+                        alertBox.classList.add('d-none');
+                    }
+                });
+            });
+
+            const loanType = document.getElementById('loanType');
+            const loanTypeValue = document.getElementById('loanTypeValue');
+            const personNameLabel = document.getElementById('personNameLabel');
+            const personNameSelect = document.getElementById('personName');
+            const repayToggle = document.getElementById('repayToggle');
+            const formTitle = document.getElementById('formTitle');
+            const formSubtitle = document.getElementById('formSubtitle');
+            const submitButton = document.getElementById('submitButton');
+
+            function syncLoanTypeValue() {
+                if (loanTypeValue && loanType) {
+                    loanTypeValue.value = loanType.value;
+                }
+            }
+
+            function updateLabel() {
+                if (!loanType || !personNameLabel) return;
+                if (loanType.value === 'Debtor') {
+                    personNameLabel.textContent = 'Debtor Name';
+                } else if (loanType.value === 'Creditor') {
+                    personNameLabel.textContent = 'Creditor Name';
+                } else {
+                    personNameLabel.textContent = 'Person Name';
+                }
+            }
+
+            function updateOptions() {
+                if (!loanType || !personNameSelect) return;
+                const selectedType = loanType.value;
+                const currentValue = personNameSelect.value;
+
+                Array.from(personNameSelect.options).forEach(function (option) {
+                    if (!option.value) {
+                        option.hidden = false;
+                        return;
+                    }
+
+                    const optionType = option.getAttribute('data-type');
+                    const matches = !selectedType || optionType === selectedType;
+                    option.hidden = !matches;
+                    option.disabled = !matches;
+                });
+
+                const matchingOption = Array.from(personNameSelect.options).find(function (option) {
+                    return option.value === currentValue && !option.hidden;
+                });
+
+                if (matchingOption) {
+                    matchingOption.selected = true;
+                } else {
+                    personNameSelect.value = '';
+                }
+            }
+
+            function updateMode() {
+                if (!repayToggle || !formTitle || !formSubtitle || !submitButton || !loanType) return;
+
+                if (repayToggle.checked) {
+                    loanType.value = 'Debtor';
+                    formTitle.textContent = 'Repay Entry';
+                    formSubtitle.textContent = 'Record a repayment quickly.';
+                    submitButton.textContent = 'Save Repayment';
+                } else {
+                    loanType.value = 'Creditor';
+                    formTitle.textContent = 'Loan Entry';
+                    formSubtitle.textContent = 'Add a new loan record quickly.';
+                    submitButton.textContent = 'Save Loan';
+                }
+
+                syncLoanTypeValue();
+                updateLabel();
+                updateOptions();
+            }
+
+            if (loanType) {
+                loanType.addEventListener('change', function () {
+                    syncLoanTypeValue();
+                    updateLabel();
+                    updateOptions();
+                });
+                syncLoanTypeValue();
+                updateLabel();
+                updateOptions();
+            }
+
+            if (repayToggle) {
+                repayToggle.addEventListener('change', updateMode);
+                updateMode();
+            }
+        });
+    </script>
 </body>
 </html>
