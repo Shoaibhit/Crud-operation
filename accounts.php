@@ -2,22 +2,22 @@
 session_start();
 include 'connection.php';
 
-$staticAccounts = [
-    'Cash',
-    'Bank',
-    'Accounts Receivable',
-    'Accounts Payable',
-    'Capital',
-    'Sales',
-];
+
 
 $selectedAccount = trim($_GET['account'] ?? '');
 $selectedType = trim($_GET['transaction_type'] ?? 'all');
 $startDate = trim($_GET['start_date'] ?? '');
 $endDate = trim($_GET['end_date'] ?? '');
-$search = trim($_GET['search'] ?? '');
+$search = trim($_GET['search'] ?? '');  
 
-$accounts = $staticAccounts;
+$accounts = [];
+
+$select = "SELECT * FROM accounts";
+$result = mysqli_query($conn, $select);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    $accounts[] = $row['name'];
+}
 
 $accountBalances = [];
 $balanceQuery = "SELECT account, COALESCE(SUM(debit_amount),0) AS total_debit, COALESCE(SUM(credit_amount),0) AS total_credit FROM (SELECT debit_account AS account, amount AS debit_amount, 0 AS credit_amount FROM journal_entries WHERE debit_account <> '0' AND debit_account <> '' UNION ALL SELECT credit_account AS account, 0 AS debit_amount, amount AS credit_amount FROM journal_entries WHERE credit_account <> '0' AND credit_account <> '') AS t GROUP BY account";
@@ -149,6 +149,9 @@ function formatAmount($value) {
                     <a href="journal_form.php" class="btn btn-outline-primary btn-sm rounded-pill px-4">
                         <i class="bi bi-journal-text me-2"></i> New Journal Entry
                     </a>
+                     <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill ms-2 openAddCategory">
+                            <i class="bi bi-folder-plus me-2"></i> Add Category
+                        </button>
                 </div>
 
                 <div class="row g-3 mb-4">

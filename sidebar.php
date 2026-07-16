@@ -13,6 +13,9 @@
         <a href="accounts.php" class="nav-link d-flex align-items-center"><i class="bi bi-list-ul me-2"></i>Accounts Ledger</a>
         <a href="journal_form.php" class="nav-link d-flex align-items-center"><i class="bi bi-journal-text me-2"></i>Journal Entry</a>
         <a href="all_journal_entries.php" class="nav-link d-flex align-items-center"><i class="bi bi-journal-bookmark me-2"></i>All Journal Entries</a>
+        <a href="trial_balance.php" class="nav-link d-flex align-items-center">
+    <i class="bi bi-calculator me-2"></i>Trial Balance
+</a>
     </nav>
     <div class="sidebar-footer text-muted small">
         <div class="border-top pt-3 mt-4">
