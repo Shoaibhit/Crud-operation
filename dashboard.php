@@ -1,82 +1,70 @@
 <?php
 session_start();
-$conn = mysqli_connect("localhost", "root", "", "user");
+include 'connection.php';
 
-$insertErrors = ['name' => '', 'email' => '', 'phone' => '', 'address' => ''];
-$old = ['name' => '', 'email' => '', 'phone' => '', 'address' => ''];
-$showInsertModal = false;
-
-if(isset($_POST['add_product'])){
-    $old['name'] = trim($_POST['name'] ?? '');
-    $old['email'] = trim($_POST['email'] ?? '');
-    $old['phone'] = trim($_POST['phone'] ?? '');
-    $old['address'] = trim($_POST['address'] ?? '');
-
-    if($old['name'] === ''){
-        $insertErrors['name'] = 'Name is required.';
+function fetchScalar($conn, $sql) {
+    $result = mysqli_query($conn, $sql);
+    if ($result && $row = mysqli_fetch_assoc($result)) {
+        return $row[array_key_first($row)];
     }
-    if($old['email'] === ''){
-        $insertErrors['email'] = 'Email is required.';
-    }
-    if($old['phone'] === ''){
-        $insertErrors['phone'] = 'Phone number is required.';
-    }
-    if($old['address'] === ''){
-        $insertErrors['address'] = 'Address is required.';
-    }
+    return 0;
+}
 
-    if(!array_filter($insertErrors)){
-        $selectQuery = "SELECT * FROM products WHERE email = ?";
-        $stmt = mysqli_prepare($conn, $selectQuery);
-        mysqli_stmt_bind_param($stmt, "s", $old['email']);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
+$totalIncome = (float) fetchScalar($conn, "SELECT COALESCE(SUM(amount), 0) AS total FROM income");
+$totalExpense = (float) fetchScalar($conn, "SELECT COALESCE(SUM(amount), 0) AS total FROM expence");
+$netBalance = $totalIncome - $totalExpense;
 
-        if(mysqli_num_rows($result) > 0){
-            $insertErrors['email'] = 'Product with this email already exists.';
-            $showInsertModal = true;
-        } else {
-            $query = "INSERT INTO products (name, email, phone, address) VALUES (?, ?, ?, ?)";
-            $stmt = mysqli_prepare($conn, $query);
-            mysqli_stmt_bind_param($stmt, "ssss", $old['name'], $old['email'], $old['phone'], $old['address']);
-            mysqli_stmt_execute($stmt);
-            header('Location: ' . $_SERVER['PHP_SELF']);
-            exit;
-        }
-    } else {
-        $showInsertModal = true;
+$totalAccounts = (int) fetchScalar($conn, "SELECT COUNT(*) AS total FROM accounts");
+$totalJournalEntries = (int) fetchScalar($conn, "SELECT COUNT(*) AS total FROM journal_entries");
+$totalDebtors = (int) fetchScalar($conn, "SELECT COUNT(*) AS total FROM investors WHERE type = 'Debtor'");
+$totalCreditors = (int) fetchScalar($conn, "SELECT COUNT(*) AS total FROM investors WHERE type = 'Creditor'");
+$totalLoans = (int) fetchScalar($conn, "SELECT COUNT(*) AS total FROM loan_entries");
+
+$incomeCategories = [];
+$incomeCatQuery = "SELECT income_category AS category, COALESCE(SUM(amount), 0) AS total FROM income GROUP BY income_category ORDER BY total DESC LIMIT 6";
+$incomeCatResult = mysqli_query($conn, $incomeCatQuery);
+if ($incomeCatResult) {
+    while ($row = mysqli_fetch_assoc($incomeCatResult)) {
+        $incomeCategories[] = $row;
     }
 }
 
-if(isset($_POST['update_product'])){
-    $updateId = intval($_POST['update_id'] ?? 0);
-    $updateName = trim($_POST['update_name'] ?? '');
-    $updateEmail = trim($_POST['update_email'] ?? '');
-    $updatePhone = trim($_POST['update_phone'] ?? '');
-    $updateAddress = trim($_POST['update_address'] ?? '');
-
-    if($updateId > 0){
-        $query = "UPDATE products SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?";
-        $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, "ssssi", $updateName, $updateEmail, $updatePhone, $updateAddress, $updateId);
-        mysqli_stmt_execute($stmt);
+$expenseCategories = [];
+$expenseCatQuery = "SELECT expence_category AS category, COALESCE(SUM(amount), 0) AS total FROM expence GROUP BY expence_category ORDER BY total DESC LIMIT 6";
+$expenseCatResult = mysqli_query($conn, $expenseCatQuery);
+if ($expenseCatResult) {
+    while ($row = mysqli_fetch_assoc($expenseCatResult)) {
+        $expenseCategories[] = $row;
     }
-
-    header('Location: ' . $_SERVER['PHP_SELF']);
-    exit;
 }
 
-if(isset($_POST['delete_product'])){
-    $deleteId = intval($_POST['delete_product']);
-    if($deleteId > 0){
-        $query = "DELETE FROM products WHERE id = ?";
-        $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, "i", $deleteId);
-        mysqli_stmt_execute($stmt);
+$recentIncome = [];
+$recentIncomeResult = mysqli_query($conn, "SELECT date, amount, income_category, payment_method, reference_no FROM income ORDER BY id DESC LIMIT 5");
+if ($recentIncomeResult) {
+    while ($row = mysqli_fetch_assoc($recentIncomeResult)) {
+        $recentIncome[] = $row;
     }
+}
 
-    header('Location: ' . $_SERVER['PHP_SELF']);
-    exit;
+$recentExpense = [];
+$recentExpenseResult = mysqli_query($conn, "SELECT date, amount, expence_category AS category, payment_method, note AS notes, reference_no FROM expence ORDER BY id DESC LIMIT 5");
+if ($recentExpenseResult) {
+    while ($row = mysqli_fetch_assoc($recentExpenseResult)) {
+        $recentExpense[] = $row;
+    }
+}
+
+$profitLossRows = [];
+$profitLossQuery = "SELECT d.date AS date, COALESCE(i.total_income, 0) AS income, COALESCE(e.total_expense, 0) AS expense, (COALESCE(i.total_income, 0) - COALESCE(e.total_expense, 0)) AS profit_loss FROM (SELECT date FROM income UNION SELECT date FROM expence) d LEFT JOIN (SELECT date, SUM(amount) AS total_income FROM income GROUP BY date) i ON i.date = d.date LEFT JOIN (SELECT date, SUM(amount) AS total_expense FROM expence GROUP BY date) e ON e.date = d.date ORDER BY d.date ASC";
+$profitLossResult = mysqli_query($conn, $profitLossQuery);
+if ($profitLossResult) {
+    while ($row = mysqli_fetch_assoc($profitLossResult)) {
+        $profitLossRows[] = $row;
+    }
+}
+
+function formatAmount($value) {
+    return number_format((float)$value, 2);
 }
 ?>
 <!doctype html>
@@ -84,7 +72,7 @@ if(isset($_POST['delete_product'])){
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Bootstrap demo</title>
+    <title>Dashboard</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -95,312 +83,381 @@ if(isset($_POST['delete_product'])){
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
     />
+    <style>
+      body {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #eef2ff 0%, #f8fbff 100%);
+      }
+      .sidebar {
+        min-height: 100vh;
+        background: #1f2937;
+        color: #e5e7eb;
+      }
+      .sidebar a {
+        color: #d1d5db;
+        text-decoration: none;
+      }
+      .sidebar a:hover,
+      .sidebar a.active {
+        color: #ffffff;
+        background: rgba(255,255,255,0.08);
+      }
+      .sidebar .nav-link {
+        padding: 0.85rem 1rem;
+        border-radius: 0.6rem;
+      }
+      .page-card {
+        border-radius: 1.2rem;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      }
+      .stat-card {
+        min-height: 160px;
+      }
+      .category-list {
+        max-height: 260px;
+        overflow-y: auto;
+      }
+      .summary-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+      }
+      .summary-item {
+        flex: 1 1 calc(14.285% - 1rem);
+        min-width: 170px;
+      }
+      .summary-item .card-body {
+        padding: 1rem 1rem 0.9rem;
+      }
+      .chart-card {
+        border-radius: 1.2rem;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.04);
+        background: transparent;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+      }
+      .chart-canvas {
+        min-height: 360px;
+        padding: 1rem;
+      }
+      .table-responsive {
+        overflow: hidden;
+        border-radius: 1rem;
+      }
+      .table thead th {
+        border-bottom: 2px solid #e5e7eb;
+      }
+    </style>
   </head>
-  <body
-    style="
-      background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
-      min-height: 100vh;
-    "
-  >
-    <div
-      class="container m-auto mt-5 p-5 bg-white rounded shadow"
-      style="max-width: 900px"
-    >
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <span class="fw-bold">Product details</span>
-        <button
-          id="insertBtn"
-          class="btn btn-sm btn-success"
-          data-bs-toggle="modal"
-          data-bs-target="#exampleModal"
-          data-bs-whatever="@mdo"
-        >
-          <i class="bi bi-plus-circle"></i> Insert product
-        </button>
+  <body>
+    <div class="container-fluid">
+      <div class="row gx-0">
+        <?php include 'sidebar.php'; ?>
+        <main class="col-12 col-md-9 col-xl-9 p-4">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+            <div>
+              <h1 class="h3 mb-1">Admin Dashboard</h1>
+              <p class="text-muted mb-0">Summary of income, expense, accounts and financial performance.</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <a href="income_form.php" class="btn btn-primary rounded-pill px-4">
+                <i class="bi bi-wallet me-2"></i>Add Income
+              </a>
+              <a href="expence_form.php" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="bi bi-wallet2 me-2"></i>Add Expense
+              </a>
+            </div>
+          </div>
+
+          <div class="summary-row">
+            <div class="summary-item card page-card border-0 bg-white h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="text-uppercase text-muted small">Balance</span>
+                    <h4 class="mt-2 mb-1">Rs <?php echo formatAmount($netBalance); ?></h4>
+                  </div>
+                  <i class="bi bi-cash-stack text-primary fs-3"></i>
+                </div>
+                <p class="text-muted mb-0">Available Balance</p>
+              </div>
+            </div>
+            <div class="summary-item card page-card border-0 bg-white h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="text-uppercase text-muted small">Income</span>
+                    <h4 class="mt-2 mb-1">Rs <?php echo formatAmount($totalIncome); ?></h4>
+                  </div>
+                  <i class="bi bi-suitcase text-success fs-3"></i>
+                </div>
+                <p class="text-muted mb-0">Total income.</p>
+              </div>
+            </div>
+            <div class="summary-item card page-card border-0 bg-white h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="text-uppercase text-muted small">Expense</span>
+                    <h4 class="mt-2 mb-1">Rs <?php echo formatAmount($totalExpense); ?></h4>
+                  </div>
+                  <i class="bi bi-credit-card-2-back text-danger fs-3"></i>
+                </div>
+                <p class="text-muted mb-0">Total expense.</p>
+              </div>
+            </div>
+            <div class="summary-item card page-card border-0 bg-white h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="text-uppercase text-muted small">Journal entries</span>
+                    <h4 class="mt-2 mb-1"><?php echo $totalJournalEntries; ?></h4>
+                  </div>
+                  <i class="bi bi-journal-text text-info fs-3"></i>
+                </div>
+                <p class="text-muted mb-0">Journal records total.</p>
+              </div>
+            </div>
+            <div class="summary-item card page-card border-0 bg-white h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="text-uppercase text-muted small">Accounts</span>
+                    <h4 class="mt-2 mb-1"><?php echo $totalAccounts; ?></h4>
+                  </div>
+                  <i class="bi bi-bookmarks text-warning fs-3"></i>
+                </div>
+                <p class="text-muted mb-0">Total Accounts</p>
+              </div>
+            </div>
+            <div class="summary-item card page-card border-0 bg-white h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="text-uppercase text-muted small">Debtors</span>
+                    <h4 class="mt-2 mb-1"><?php echo $totalDebtors; ?></h4>
+                  </div>
+                  <i class="bi bi-people-fill text-secondary fs-3"></i>
+                </div>
+                <p class="text-muted mb-0">Total Debtor</p>
+              </div>
+            </div>
+            <div class="summary-item card page-card border-0 bg-white h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="text-uppercase text-muted small">Creditors</span>
+                    <h4 class="mt-2 mb-1"><?php echo $totalCreditors; ?></h4>
+                  </div>
+                  <i class="bi bi-people text-secondary fs-3"></i>
+                </div>
+                <p class="text-muted mb-0">Total Creditor</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-lg-6">
+              <div class="card page-card border-0 overflow-hidden chart-card">
+                <div class="p-4">
+                  <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                      <h2 class="h5 mb-1">Income by Category</h2>
+                      <p class="text-muted mb-0">Top income categories visualized.</p>
+                    </div>
+                    <span class="badge rounded-pill bg-success text-light bg-opacity-15 text-success py-2 px-3">Income</span>
+                  </div>
+                </div>
+                <div id="incomePieChart" class="chart-canvas"></div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <div class="card page-card border-0 overflow-hidden chart-card">
+                <div class="p-4">
+                  <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                      <h2 class="h5 mb-1">Expense by Category</h2>
+                      <p class="text-muted mb-0">Top expense categories visualized.</p>
+                    </div>
+                    <span class="badge rounded-pill bg-danger bg-opacity-15 text-danger py-2 px-3 text-light">Expense</span>
+                  </div>
+                </div>
+                <div id="expensePieChart" class="chart-canvas"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-12">
+              <div class="card page-card border-0 overflow-hidden chart-card">
+                <div class="p-4">
+                  <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                      <h2 class="h5 mb-1">Profit / Loss Trend</h2>
+                      <p class="text-muted mb-0">Income expense over time.</p>
+                    </div>
+                    <span class="badge rounded-pill bg-secondary text-light bg-opacity-15 text-secondary py-2 px-3">Trend</span>
+                  </div>
+                </div>
+                <div id="profitLossChart" class="chart-canvas"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-lg-6">
+              <div class="card page-card border-0 p-4 bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <h2 class="h5 mb-1">Recent Income</h2>
+                    <p class="text-muted mb-0">Latest 5 income transactions.</p>
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th class="text-end">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php if (count($recentIncome) > 0): ?>
+                        <?php foreach ($recentIncome as $row): ?>
+                          <tr>
+                            <td><?php echo htmlspecialchars($row['date']); ?></td>
+                            <td><?php echo htmlspecialchars($row['income_category']); ?></td>
+                            <td class="text-end">Rs <?php echo formatAmount($row['amount']); ?></td>
+                          </tr>
+                        <?php endforeach; ?>
+                      <?php else: ?>
+                        <tr><td colspan="3" class="text-center text-muted py-4">No recent income records.</td></tr>
+                      <?php endif; ?>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <div class="card page-card border-0 p-4 bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <h2 class="h5 mb-1">Recent Expense</h2>
+                    <p class="text-muted mb-0">Latest 5 expense transactions.</p>
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th class="text-end">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php if (count($recentExpense) > 0): ?>
+                        <?php foreach ($recentExpense as $row): ?>
+                          <tr>
+                            <td><?php echo htmlspecialchars($row['date']); ?></td>
+                            <td><?php echo htmlspecialchars($row['category']); ?></td>
+                            <td class="text-end">Rs <?php echo formatAmount($row['amount']); ?></td>
+                          </tr>
+                        <?php endforeach; ?>
+                      <?php else: ?>
+                        <tr><td colspan="3" class="text-center text-muted py-4">No recent expense records.</td></tr>
+                      <?php endif; ?>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
-      <table class="table table-hover">
-        <thead class="bg-light text-dark border border-2 border-dark">
-          <tr>
-            <th class="border border-2 border-dark">NAME</th>
-            <th class="border border-2 border-dark">EMAIL</th>
-            <th class="border border-2 border-dark">PHONE</th>
-            <th class="border border-2 border-dark">ADDRESS</th>
-            <th class="border border-2 border-dark">ACTION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php 
-          $selectQuery = "SELECT * FROM products"; 
-            $result = mysqli_query($conn, $selectQuery);
-          while($row = mysqli_fetch_assoc($result)){ ?>
-          <tr>
-            <td class="border border-2 border-dark">
-              <?php echo $row['name']; ?>
-            </td>
-            <td class="border border-2 border-dark">
-              <?php echo $row['email']; ?>
-            </td>
-            <td class="border border-2 border-dark">
-              <?php echo $row['phone']; ?>
-            </td>
-            <td class="border border-2 border-dark">
-              <?php echo $row['address']; ?>
-            </td>
-            <td class="border border-2 border-dark">
-              <button
-                class="btn btn-sm btn-primary updateBtn"
-                data-bs-toggle="modal"
-                data-bs-target="#updateModal"
-                data-id="<?php echo $row['id']; ?>"
-                data-name="<?php echo htmlspecialchars($row['name'], ENT_QUOTES); ?>"
-                data-email="<?php echo htmlspecialchars($row['email'], ENT_QUOTES); ?>"
-                data-phone="<?php echo htmlspecialchars($row['phone'], ENT_QUOTES); ?>"
-                data-address="<?php echo htmlspecialchars($row['address'], ENT_QUOTES); ?>"
-              >
-                <i class="bi bi-pencil-square"></i>
-              </button>
-              <form method="POST" style="display:inline;">
-                <button type="submit" class="btn btn-sm btn-danger" name="delete_product" value="<?php echo $row['id']; ?>" onclick="return confirm('Are you sure you want to delete this product?');">
-                  <i class="bi bi-trash fw-bold"></i>
-                </button>
-              </form>
-            </td>
-          </tr>
-          <?php } ?>
-        </tbody>
-      </table>
     </div>
 
-    <!-- insert product modal -->
 
-   <form action="" method="POST" id="insertForm" novalidate>
-        <div
-      class="modal fade"
-      id="exampleModal"
-      tabindex="-1"
-      aria-labelledby="exampleModalLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h1 class="modal-title fs-5" id="exampleModalLabel">
-              Add Product details
-            </h1>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-              <div class="mb-3">
-                <label for="product-name" class="col-form-label"
-                  >Product Name:</label
-                >
-                <input
-                  type="text"
-                  class="form-control"
-                  id="product-name"
-                  name="name"
-                  value="<?php echo htmlspecialchars($old['name']); ?>"
-                />
-                <span id="nameError" class="text-danger" style="font-size: 12px;"><?php echo $insertErrors['name']; ?></span>
-              </div>
-              <div class="mb-3">
-                <label for="product-email" class="col-form-label">EMAIL:</label>
-                <input
-                  type="email"
-                  class="form-control"
-                  id="product-email"
-                  name="email"
-                  value="<?php echo htmlspecialchars($old['email']); ?>"
-                />
-                <span id="emailError" class="text-danger" style="font-size: 12px;"><?php echo $insertErrors['email']; ?></span>
-              </div>
-              <div class="mb-3">
-                <label for="product-phone" class="col-form-label">PHONE:</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="product-phone"
-                  name="phone"
-                  value="<?php echo htmlspecialchars($old['phone']); ?>"
-                />
-                <span id="phoneError" class="text-danger" style="font-size: 12px;"><?php echo $insertErrors['phone']; ?></span>
-              </div>
-              <div class="mb-3">
-                <label for="product-address" class="col-form-label"
-                  >ADDRESS:</label
-                >
-                <input
-                  type="text"
-                  class="form-control"
-                  id="product-address"
-                  name="address"
-                  value="<?php echo htmlspecialchars($old['address']); ?>"
-                />
-                <span id="addressError" class="text-danger" style="font-size: 12px;"><?php echo $insertErrors['address']; ?></span>
-              </div>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              data-bs-dismiss="modal"
-            >
-              Close
-            </button>
-            <button type="submit" class="btn btn-primary" name="add_product">
-              Add Product
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-   </form>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawCharts);
 
-    <!-- update product modal -->
-   <form action="" method="POST" id="updateForm" novalidate>
-    <div  class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h1 class="modal-title fs-5" id="updateModalLabel">Update Product details</h1>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <input type="hidden" id="update-product-id" name="update_id" />
-            <div class="mb-3">
-              <label for="update-product-name" class="col-form-label">Product Name:</label>
-              <input type="text" class="form-control" id="update-product-name" name="update_name" />
-            </div>
-            <div class="mb-3">
-              <label for="update-product-email" class="col-form-label">EMAIL:</label>
-              <input type="email" class="form-control" id="update-product-email" name="update_email" />
-            </div>
-            <div class="mb-3">
-              <label for="update-product-phone" class="col-form-label">PHONE:</label>
-              <input type="text" class="form-control" id="update-product-phone" name="update_phone" />
-            </div>
-            <div class="mb-3">
-              <label for="update-product-address" class="col-form-label">ADDRESS:</label>
-              <input type="text" class="form-control" id="update-product-address" name="update_address" />
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-              Close
-            </button>
-            <button type="submit" class="btn btn-primary" name="update_product">
-              Update Product
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-   </form>
+      function drawCharts() {
+        var incomeData = google.visualization.arrayToDataTable([
+          ['Category', 'Amount'],
+          <?php foreach ($incomeCategories as $cat): ?>
+            ['<?php echo htmlspecialchars(addslashes($cat['category'])); ?>', <?php echo (float)$cat['total']; ?>],
+          <?php endforeach; ?>
+        ]);
 
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        var updateModalEl = document.getElementById('updateModal');
-        if (updateModalEl) {
-          updateModalEl.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            if (!button) return;
-            var id = button.getAttribute('data-id');
-            var name = button.getAttribute('data-name');
-            var email = button.getAttribute('data-email');
-            var phone = button.getAttribute('data-phone');
-            var address = button.getAttribute('data-address');
+        var expenseData = google.visualization.arrayToDataTable([
+          ['Category', 'Amount'],
+          <?php foreach ($expenseCategories as $cat): ?>
+            ['<?php echo htmlspecialchars(addslashes($cat['category'])); ?>', <?php echo (float)$cat['total']; ?>],
+          <?php endforeach; ?>
+        ]);
 
-            document.getElementById('update-product-id').value = id;
-            document.getElementById('update-product-name').value = name;
-            document.getElementById('update-product-email').value = email;
-            document.getElementById('update-product-phone').value = phone;
-            document.getElementById('update-product-address').value = address;
-          });
-        }
+        var commonOptions = {
+          pieHole: 0.54,
+          legend: { position: 'bottom', alignment: 'center', textStyle: { color: '#6b7280', fontSize: 12 } },
+          chartArea: { width: '90%', height: '80%' },
+          backgroundColor: 'transparent',
+          tooltip: { textStyle: { fontSize: 13 }, showColorCode: true },
+          pieSliceBorderColor: '#ffffff',
+          slices: {
+            0: { color: '#0d6efd' },
+            1: { color: '#198754' },
+            2: { color: '#dc3545' },
+            3: { color: '#fd7e14' },
+            4: { color: '#6f42c1' },
+            5: { color: '#0dcaf0' }
+          }
+        };
 
-        var updateButtons = document.querySelectorAll('.updateBtn');
-        updateButtons.forEach(function(button) {
-          button.addEventListener('click', function () {
-            var id = button.getAttribute('data-id');
-            var name = button.getAttribute('data-name');
-            var email = button.getAttribute('data-email');
-            var phone = button.getAttribute('data-phone');
-            var address = button.getAttribute('data-address');
-
-            document.getElementById('update-product-id').value = id;
-            document.getElementById('update-product-name').value = name;
-            document.getElementById('update-product-email').value = email;
-            document.getElementById('update-product-phone').value = phone;
-            document.getElementById('update-product-address').value = address;
-          });
+        var incomeOptions = Object.assign({}, commonOptions, {
+          title: '',
+        });
+        var expenseOptions = Object.assign({}, commonOptions, {
+          title: '',
         });
 
-        const inputname = document.getElementById('product-name');
-        const nameError = document.getElementById('nameError');
-        const emailError = document.getElementById('emailError');
-        const phoneError = document.getElementById('phoneError');
-        const addressError = document.getElementById('addressError');
-        const inputemail = document.getElementById('product-email');
-        const inputphone = document.getElementById('product-phone');
-        const inputaddress = document.getElementById('product-address');
-        const formInsert = document.getElementById('insertForm');
+        var incomeChart = new google.visualization.PieChart(document.getElementById('incomePieChart'));
+        var expenseChart = new google.visualization.PieChart(document.getElementById('expensePieChart'));
 
-        if (formInsert) {
-          formInsert.addEventListener('submit', function (event) {
-            let hasError = false;
+        var profitLossData = google.visualization.arrayToDataTable([
+          ['Date', 'Profit / Loss'],
+          <?php foreach ($profitLossRows as $row): ?>
+            ['<?php echo htmlspecialchars(addslashes($row['date'])); ?>', <?php echo (float)$row['profit_loss']; ?>],
+          <?php endforeach; ?>
+        ]);
 
-            if (inputname.value.trim() === '') {
-              hasError = true;
-              nameError.textContent = 'Name is required.';
-            } else {
-              nameError.textContent = '';
-            }
+        var profitLossOptions = {
+          title: '',
+          curveType: 'function',
+          legend: { position: 'bottom', textStyle: { color: '#6b7280', fontSize: 12 } },
+          chartArea: { width: '90%', height: '75%' },
+          backgroundColor: 'transparent',
+          hAxis: { textStyle: { color: '#475569', fontSize: 11 }, title: 'Date', titleTextStyle: { color: '#475569' } },
+          vAxis: { textStyle: { color: '#475569', fontSize: 11 }, title: 'Profit / Loss', titleTextStyle: { color: '#475569' } },
+          colors: ['#0d6efd'],
+          lineWidth: 3,
+          pointSize: 5,
+          tooltip: { textStyle: { fontSize: 13 } }
+        };
 
-            if (inputemail.value.trim() === '') {
-              hasError = true;
-              emailError.textContent = 'Email is required.';
-            } else {
-              emailError.textContent = '';
-            }
+        var profitLossChart = new google.visualization.LineChart(document.getElementById('profitLossChart'));
 
-            if (inputphone.value.trim() === '') {
-              hasError = true;
-              phoneError.textContent = 'Phone number is required.';
-            } else {
-              phoneError.textContent = '';
-            }
-
-            if (inputaddress.value.trim() === '') {
-              hasError = true;
-              addressError.textContent = 'Address is required.';
-            } else {
-              addressError.textContent = '';
-            }
-
-            if (hasError) {
-              event.preventDefault();
-            }
-          });
-        }
-      });
+        incomeChart.draw(incomeData, incomeOptions);
+        expenseChart.draw(expenseData, expenseOptions);
+        profitLossChart.draw(profitLossData, profitLossOptions);
+      }
     </script>
-
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
       crossorigin="anonymous"
     ></script>
-     <?php if($showInsertModal): ?>
-     <script>
-       document.addEventListener('DOMContentLoaded', function(){
-         var insertModalEl = document.getElementById('exampleModal');
-         var insertModal = new bootstrap.Modal(insertModalEl);
-         insertModal.show();
-       });
-     </script>
-     <?php endif; ?>
+  </body>
+</html>

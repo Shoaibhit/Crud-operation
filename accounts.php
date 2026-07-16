@@ -121,7 +121,7 @@ function formatAmount($value) {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Accounts Ledger</title>
+    <title>Accounts</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
     <style>
@@ -149,9 +149,6 @@ function formatAmount($value) {
                     <a href="journal_form.php" class="btn btn-outline-primary btn-sm rounded-pill px-4">
                         <i class="bi bi-journal-text me-2"></i> New Journal Entry
                     </a>
-                     <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill ms-2 openAddCategory">
-                            <i class="bi bi-folder-plus me-2"></i> Add Category
-                        </button>
                 </div>
 
                 <div class="row g-3 mb-4">
