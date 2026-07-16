@@ -24,37 +24,17 @@ $old = [
     'description' => '',
 ];
 
-$incomeAccounts = [];
-$expenseAccounts = [];
-$staticAccounts = [
-    'Cash',
-    'Bank',
-    'Accounts Receivable',
-    'Accounts Payable',
-    'Capital',
-    'Sales',
-    'Purchases',
-    'Miscellaneous',
-];
+$accountOptions = [];
 
-$incomeQuery = "SELECT name FROM income_categories ORDER BY name ASC";
-$incomeResult = mysqli_query($conn, $incomeQuery);
-if ($incomeResult) {
-    while ($row = mysqli_fetch_assoc($incomeResult)) {
-        $incomeAccounts[] = $row['name'];
+$accountsQuery = "SELECT name FROM accounts ORDER BY name ASC";
+$accountsResult = mysqli_query($conn, $accountsQuery);
+if ($accountsResult) {
+    while ($row = mysqli_fetch_assoc($accountsResult)) {
+        $accountOptions[] = $row['name'];
     }
 }
 
-$expenseQuery = "SELECT name FROM expense_categories ORDER BY name ASC";
-$expenseResult = mysqli_query($conn, $expenseQuery);
-if ($expenseResult) {
-    while ($row = mysqli_fetch_assoc($expenseResult)) {
-        $expenseAccounts[] = $row['name'];
-    }
-}
-
-$accountOptions = array_unique(array_merge($staticAccounts, $incomeAccounts, $expenseAccounts));
-sort($accountOptions, SORT_STRING);
+$accountOptions = array_values(array_unique($accountOptions));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $old['entry_date'] = trim($_POST['entry_date'] ?? '');

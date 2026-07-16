@@ -141,8 +141,8 @@ $netBalance = $totalIncome - $totalExpense;
             <main class="col-12 col-md-9 col-xl-9 p-4">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
                     <div>
-                        <h1 class="h3 mb-1">Charts of Accounts</h1>
-                        <p class="text-muted mb-0">Track income and expense account categories with totals and balances.</p>
+                        <h1 class="h3 mb-1">Income & Expense Reports</h1>
+                        <p class="text-muted mb-0">Track income and expense categories reports with totals and balances.</p>
                     </div>
                 </div>
 

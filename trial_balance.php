@@ -226,7 +226,7 @@ function formatAmount($value) {
 
                
 
-                <div class="card page-card bg-white border-0 p-4">
+<div class="card page-card bg-white border-0 p-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h2 class="h5 mb-1">Trial Balance</h2>
