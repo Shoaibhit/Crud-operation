@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 $conn=mysqli_connect("localhost","root","","user") or die("Connection Failed");
 
@@ -191,11 +191,11 @@ if(isset($_POST['login'])){
               >
                 Login
               </button>
+            <div class="text-center mt-3">
+              <a href="forgot_passsword.php" class="text-decoration-none" style="font-size: 14px">Forgot your password?</a>
             </div>
             <div class="text-center mt-3">
-              <a href="#" id="showRegister" class="text-decoration-none" style="font-size: 14px"
-                >Create an accounts</a
-              >
+              <a href="#" id="showRegister" class="text-decoration-none" style="font-size: 14px">Create an accounts</a>
             </div>
           </div>
         </form>
@@ -288,3 +288,4 @@ if(isset($_POST['login'])){
     ></script>
   </body>
 </html>
+
