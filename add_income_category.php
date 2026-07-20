@@ -1,4 +1,5 @@
 <?php
+require 'auth.php';
 header('Content-Type: application/json');
 require 'connection.php';
 

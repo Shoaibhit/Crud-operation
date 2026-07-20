@@ -1,4 +1,5 @@
 <?php
+require 'auth.php';
 require 'connection.php';
 
 if (!isset($_GET['id'])) {

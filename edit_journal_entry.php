@@ -1,5 +1,5 @@
 <?php
-session_start();
+require 'auth.php';
 include 'connection.php';
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -154,7 +154,7 @@ function html($value) {
     <div class="container-fluid">
         <div class="row gx-0">
             <?php include 'sidebar.php'; ?>
-            <main class="col-12 col-md-9 col-xl-9 p-4">
+            <main class="col-12 col-md-9 col-xl-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h1 class="h3 mb-1">Edit Journal Entry</h1>

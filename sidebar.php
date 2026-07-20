@@ -31,10 +31,11 @@
         <a href="income_statement.php" class="nav-link d-flex align-items-center"><i class="bi bi-file-earmark-text me-2"></i>Income Statement</a>
         <a href="debtor_creditor.php" class="nav-link d-flex align-items-center"><i class="bi bi-people me-2"></i>Debtors / Creditors</a>
         <a href="loans.php" class="nav-link d-flex align-items-center"><i class="bi bi-credit-card me-2"></i>Loans</a>
+        <a href="logout.php" class="nav-link d-flex align-items-center"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
        
         
        
-        
+       
         
     </nav>
     <div class="sidebar-footer text-muted small">

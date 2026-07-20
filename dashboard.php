@@ -1,5 +1,5 @@
 <?php
-session_start();
+require 'auth.php';
 include 'connection.php';
 
 function fetchScalar($conn, $sql) {
@@ -125,10 +125,14 @@ function formatAmount($value) {
       }
       .summary-item {
         flex: 1 1 calc(14.285% - 1rem);
-        min-width: 170px;
+        min-width: 140px;
       }
       .summary-item .card-body {
         padding: 1rem 1rem 0.9rem;
+      }
+      .summary-item .stat-value {
+        font-size: 1.45rem;
+        line-height: 1.1;
       }
       .chart-card {
         border-radius: 1.2rem;
@@ -153,7 +157,7 @@ function formatAmount($value) {
     <div class="container-fluid">
       <div class="row gx-0">
         <?php include 'sidebar.php'; ?>
-        <main class="col-12 col-md-9 col-xl-9 p-4">
+        <main class="col-12 col-md-9 col-xl-10 p-4">
           <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
             <div>
               <h1 class="h3 mb-1">Admin Dashboard</h1>
@@ -175,7 +179,7 @@ function formatAmount($value) {
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div>
                     <span class="text-uppercase text-muted small">Balance</span>
-                    <h4 class="mt-2 mb-1">Rs <?php echo formatAmount($netBalance); ?></h4>
+                    <h4 class="mt-2 mb-1 stat-value">Rs <?php echo formatAmount($netBalance); ?></h4>
                   </div>
                   <i class="bi bi-cash-stack text-primary fs-3"></i>
                 </div>
@@ -187,9 +191,9 @@ function formatAmount($value) {
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div>
                     <span class="text-uppercase text-muted small">Income</span>
-                    <h4 class="mt-2 mb-1">Rs <?php echo formatAmount($totalIncome); ?></h4>
+                    <h4 class="mt-2 mb-1 stat-value">Rs <?php echo formatAmount($totalIncome); ?></h4>
                   </div>
-                  <i class="bi bi-suitcase text-success fs-3"></i>
+                  <i class="bi bi-wallet2 text-success fs-3"></i>
                 </div>
                 <p class="text-muted mb-0">Total income.</p>
               </div>
@@ -199,7 +203,7 @@ function formatAmount($value) {
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div>
                     <span class="text-uppercase text-muted small">Expense</span>
-                    <h4 class="mt-2 mb-1">Rs <?php echo formatAmount($totalExpense); ?></h4>
+                    <h4 class="mt-2 mb-1 stat-value">Rs <?php echo formatAmount($totalExpense); ?></h4>
                   </div>
                   <i class="bi bi-credit-card-2-back text-danger fs-3"></i>
                 </div>
@@ -215,7 +219,7 @@ function formatAmount($value) {
                   </div>
                   <i class="bi bi-journal-text text-info fs-3"></i>
                 </div>
-                <p class="text-muted mb-0">Journal records total.</p>
+                <p class="text-muted mb-0">Journal records</p>
               </div>
             </div>
             <div class="summary-item card page-card border-0 bg-white h-100">

@@ -1,4 +1,5 @@
 <?php
+require 'auth.php';
 require 'connection.php';
 
 $result = mysqli_query($conn,"SELECT COUNT(*) AS total FROM accounts");
@@ -34,8 +35,17 @@ WHERE account_type='Equity'
 $data = mysqli_fetch_assoc($result);
 
 $totalEquity = $data['total'];
-
-
+$accountBalances = [];
+$balanceQuery = "SELECT account, COALESCE(SUM(debit_amount),0) AS total_debit, COALESCE(SUM(credit_amount),0) AS total_credit FROM (SELECT debit_account AS account, amount AS debit_amount, 0 AS credit_amount FROM journal_entries WHERE debit_account <> '0' AND debit_account <> '' UNION ALL SELECT credit_account AS account, 0 AS debit_amount, amount AS credit_amount FROM journal_entries WHERE credit_account <> '0' AND credit_account <> '') AS t GROUP BY account";
+$balanceResult = mysqli_query($conn, $balanceQuery);
+if ($balanceResult) {
+    while ($row = mysqli_fetch_assoc($balanceResult)) {
+        $accountBalances[$row['account']] = [
+            'total_debit' => (float)$row['total_debit'],
+            'total_credit' => (float)$row['total_credit'],
+        ];
+    }
+}
 $query = mysqli_query($conn,"
 SELECT *
 FROM accounts
@@ -93,7 +103,7 @@ ORDER BY account_code ASC
     <div class="container-fluid">
         <div class="row gx-0">
             <?php include 'sidebar.php'; ?>
-            <main class="col-12 col-md-9 col-xl-9 p-4">
+            <main class="col-12 col-md-9 col-xl-10 p-4">
                 
                 <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
@@ -235,6 +245,8 @@ ORDER BY account_code ASC
     <th>Account Code</th>
     <th>Account Name</th>
     <th>Account Type</th>
+    <th class="text-end">Opening Balance</th>
+    <th class="text-end">Current Balance</th>
     <th>Actions</th>
 </tr>
             </thead>
@@ -256,13 +268,25 @@ while($row=mysqli_fetch_assoc($query)){
 
     <td><?= htmlspecialchars($row['account_type']); ?></td>
 
+    <td class="text-end">Rs <?= number_format((float)($row['opening_balance'] ?? 0), 2); ?></td>
+
+    <?php
+        $accountBalance = 0;
+        if (isset($accountBalances[$row['name']])) {
+            $balanceData = $accountBalances[$row['name']];
+            $accountBalance = $balanceData['total_debit'] - $balanceData['total_credit'];
+        }
+    ?>
+    <td class="text-end">Rs <?= number_format($accountBalance, 2); ?></td>
+
     <td>
         <button type="button"
                 class="btn btn-sm btn-primary edit-account-btn"
                 data-id="<?= $row['id']; ?>"
                 data-code="<?= htmlspecialchars($row['account_code'], ENT_QUOTES); ?>"
                 data-name="<?= htmlspecialchars($row['name'], ENT_QUOTES); ?>"
-                data-type="<?= htmlspecialchars($row['account_type'], ENT_QUOTES); ?>">
+                data-type="<?= htmlspecialchars($row['account_type'], ENT_QUOTES); ?>"
+                data-opening-balance="<?= htmlspecialchars($row['opening_balance'] ?? 0, ENT_QUOTES); ?>">
             <i class="bi bi-pencil"></i>
         </button>
 
@@ -316,6 +340,10 @@ while($row=mysqli_fetch_assoc($query)){
                 <option value="Expense">Expense</option>
               </select>
             </div>
+            <div class="mb-3">
+              <label class="form-label">Opening Balance</label>
+              <input type="number" step="0.01" min="0" id="accountOpeningBalance" class="form-control" value="0" />
+            </div>
             <div id="addAccountError" class="text-danger small mt-2 d-none"></div>
           </div>
           <div class="modal-footer">
@@ -353,6 +381,10 @@ while($row=mysqli_fetch_assoc($query)){
                 <option value="Income">Income</option>
                 <option value="Expense">Expense</option>
               </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Opening Balance</label>
+              <input type="number" step="0.01" min="0" id="editAccountOpeningBalance" class="form-control" value="0" />
             </div>
             <div id="editAccountError" class="text-danger small mt-2 d-none"></div>
           </div>
@@ -393,6 +425,7 @@ while($row=mysqli_fetch_assoc($query)){
             const code = codeInput.value.trim();
             const name = nameInput.value.trim();
             const type = typeSelect.value;
+            const openingBalance = document.getElementById('accountOpeningBalance').value.trim() || '0';
             if (!code || !name || !type) {
               errorDiv.textContent = 'Account Code, Name and Type are required';
               errorDiv.classList.remove('d-none');
@@ -402,7 +435,7 @@ while($row=mysqli_fetch_assoc($query)){
             fetch('add_account.php', {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: 'account_code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name) + '&account_type=' + encodeURIComponent(type)
+              body: 'account_code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name) + '&account_type=' + encodeURIComponent(type) + '&opening_balance=' + encodeURIComponent(openingBalance)
             }).then(r => r.json()).then(function (data) {
               saveBtn.disabled = false;
               if (data.success) {
@@ -427,6 +460,7 @@ while($row=mysqli_fetch_assoc($query)){
         const editCode = document.getElementById('editAccountCode');
         const editName = document.getElementById('editAccountName');
         const editType = document.getElementById('editAccountType');
+        const editAccountOpeningBalance = document.getElementById('editAccountOpeningBalance');
         const editError = document.getElementById('editAccountError');
         const updateBtn = document.getElementById('updateAccount');
 
@@ -436,6 +470,7 @@ while($row=mysqli_fetch_assoc($query)){
             editCode.value = btn.getAttribute('data-code');
             editName.value = btn.getAttribute('data-name');
             editType.value = btn.getAttribute('data-type');
+            editAccountOpeningBalance.value = btn.getAttribute('data-opening-balance') || '0';
             editError.classList.add('d-none');
             if (bsEditModal) bsEditModal.show();
           });
@@ -447,6 +482,7 @@ while($row=mysqli_fetch_assoc($query)){
             const code = editCode.value.trim();
             const name = editName.value.trim();
             const type = editType.value;
+            const openingBalance = editAccountOpeningBalance.value.trim() || '0';
             if (!code || !name || !type) {
               editError.textContent = 'Account Code, Name and Type are required';
               editError.classList.remove('d-none');
@@ -456,7 +492,7 @@ while($row=mysqli_fetch_assoc($query)){
             fetch('edit_account.php', {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: 'id=' + encodeURIComponent(id) + '&account_code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name) + '&account_type=' + encodeURIComponent(type)
+              body: 'id=' + encodeURIComponent(id) + '&account_code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name) + '&account_type=' + encodeURIComponent(type) + '&opening_balance=' + encodeURIComponent(openingBalance)
             }).then(r => r.json()).then(function (data) {
               updateBtn.disabled = false;
               if (data.success) {

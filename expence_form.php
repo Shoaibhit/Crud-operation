@@ -1,6 +1,6 @@
 
 <?php
-session_start();
+require 'auth.php';
 include 'connection.php';
 
 $reference_no = sprintf('%06d', random_int(0, 999999));
@@ -132,7 +132,7 @@ if (isset($_POST['save_expense'])) {
     <div class="container-fluid">
         <div class="row gx-0">
             <?php include 'sidebar.php'; ?>
-            <main class="col-12 col-md-9 col-xl-9 p-4">
+            <main class="col-12 col-md-9 col-xl-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h1 class="h3 mb-1">Expense Entry</h1>

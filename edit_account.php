@@ -1,4 +1,5 @@
 <?php
+require 'auth.php';
 header('Content-Type: application/json');
 require 'connection.php';
 
@@ -11,6 +12,7 @@ $id = intval($_POST['id'] ?? 0);
 $code = trim($_POST['account_code'] ?? '');
 $name = trim($_POST['name'] ?? '');
 $type = trim($_POST['account_type'] ?? '');
+$opening_balance = trim($_POST['opening_balance'] ?? '0');
 
 if ($id <= 0 || $code === '' || $name === '' || $type === '') {
     echo json_encode(['success' => false, 'message' => 'All fields are required']);
@@ -31,13 +33,13 @@ if ($stmt) {
     mysqli_stmt_close($stmt);
 }
 
-$updateSql = "UPDATE accounts SET account_code = ?, name = ?, account_type = ?, updated_at = NOW() WHERE id = ?";
+$updateSql = "UPDATE accounts SET account_code = ?, name = ?, account_type = ?, opening_balance = ?, updated_at = NOW() WHERE id = ?";
 $stmt = mysqli_prepare($conn, $updateSql);
 if (!$stmt) {
     echo json_encode(['success' => false, 'message' => 'DB error: ' . mysqli_error($conn)]);
     exit;
 }
-mysqli_stmt_bind_param($stmt, 'sssi', $code, $name, $type, $id);
+mysqli_stmt_bind_param($stmt, 'sssdi', $code, $name, $type, $opening_balance, $id);
 if (mysqli_stmt_execute($stmt)) {
     mysqli_stmt_close($stmt);
     echo json_encode(['success' => true]);

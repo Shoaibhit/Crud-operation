@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $conn = mysqli_connect('localhost','root','','accounting');
 if (!$conn) {
     echo 'connfail: ' . mysqli_connect_error();

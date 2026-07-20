@@ -1,4 +1,5 @@
 <?php
+require 'auth.php';
 require 'connection.php';
 
 $incomeCategories = [];
@@ -138,7 +139,7 @@ $netBalance = $totalIncome - $totalExpense;
     <div class="container-fluid">
         <div class="row gx-0">
             <?php include 'sidebar.php'; ?>
-            <main class="col-12 col-md-9 col-xl-9 p-4">
+            <main class="col-12 col-md-9 col-xl-10 p-4">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
                     <div>
                         <h1 class="h3 mb-1">Income & Expense Reports</h1>

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $conn = mysqli_connect("localhost","root","","accounting");
 if (!$conn) { echo "fail: " . mysqli_connect_error(); exit(1); }
 $res = mysqli_query($conn, "SHOW TABLES LIKE 'journal_entries'");

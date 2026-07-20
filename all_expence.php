@@ -1,6 +1,6 @@
 
 <?php
-session_start();
+require 'auth.php';
 include 'connection.php';
 
 $successMessage = '';
@@ -141,7 +141,7 @@ if ($stmt) {
     <div class="container-fluid">
         <div class="row gx-0">
             <?php include 'sidebar.php'; ?>
-            <main class="col-12 col-md-9 col-xl-9 p-4">
+            <main class="col-12 col-md-9 col-xl-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h1 class="h3 mb-1">All Expense Records</h1>
